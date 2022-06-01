@@ -9,7 +9,7 @@ import (
 
 const (
 	peerAddress = "127.0.0.1:4242"
-	message     = "Helloworld"
+	message     = "Hello world"
 )
 
 func main() {
@@ -30,7 +30,8 @@ func main() {
 		log.Fatalln(err)
 	}
 	buf := make([]byte, len(message))
-	_, err = stream.Read(buf)
+	//_, err = io.ReadFull(stream,buf)
+	_, err =stream.Read(buf)
 	if err != nil {
 		log.Fatalln(err)
 	}
