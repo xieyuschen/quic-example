@@ -117,9 +117,13 @@ containing the FIN bit is sent, the sending part of the stream enters the "Data 
 
 So in the echo case, after writing the stream, the server stream still keep the `Send` state as the application doesn't
 indicate "all stream data has been sent".
+So the server stream have to wait a timeout(io.Copy waits the data from a stream until an EOF) and then the stream 
+will move to the `Sent` state(not sure, the timeout might to the Data Recvd directly).
 
 ## Why the server could only serve one client request?
-The first client request gets a echo message, but the second one blocks until gets a "timeout: 
+The first client request gets an echo message, but the second one blocks until gets a "timeout: 
 no recent network activity" error.  
 So why the server doesn't exit but cannot serve a new client request?
-// todo
+
+The reason is our server only set logic for the first stream. If the client runs twice, the second one tries to create 
+a new stream. However, there is no logic in server side to solve it and the request fails at the echo example here.
