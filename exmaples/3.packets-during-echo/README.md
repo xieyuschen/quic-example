@@ -10,7 +10,8 @@ Wireshark is an open-source software with a good GUI.
   
 - netstat.  
 Netstat integrates with the Linux administrator and can get manual by `man netstat` on ubuntu(can also visit the 
-  [website](https://linux.die.net/man/8/netstat). So I prefer the 
-  netstat to analyze the udp packets.
+  [website](https://linux.die.net/man/8/netstat). However, it's obsolete and is replaced by the more powerful tool `ss`.
   
+- ss.
+`ss` is a more powerful tool than netstat. Prefer this tool on ubuntu.
 ## Analysis
