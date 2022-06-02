@@ -30,7 +30,6 @@ func main() {
 		log.Fatalln(err)
 	}
 	buf := make([]byte, len(message))
-	//_, err = io.ReadFull(stream,buf)
 	_, err =stream.Read(buf)
 	if err != nil {
 		log.Fatalln(err)
