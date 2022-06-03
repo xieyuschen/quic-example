@@ -1,5 +1,5 @@
 ## Echo
-Run `go run echo.go` under the [echo demo](./echo.go) path.  
+Run `go run echo.go` under the [echo demo](echo.go) path.  
 You are successful to run the echo demo when you see the logs.
 ```
 Client: Sending 'foobar'
