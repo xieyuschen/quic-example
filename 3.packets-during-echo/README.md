@@ -25,4 +25,9 @@ underlies the udp protocol, what we should do is to find a useful tool on UDP.
   
 Linux provides many network tools, but if we want to take an eye on the packets the `tcpdump`.
 ## Analysis
-When use `ss` to see the packet details,
+If we want to use tcpdump to see the packets, the key pair and certificate should be fixed as we need it to decrypt the 
+packets. As a result, I choose the files under `/cert` files:
+- See the certificate details:
+```shell
+quic-example/cert$ openssl x509 -in ca.pem -noout -text
+```

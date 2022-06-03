@@ -35,10 +35,12 @@ func init() {
 		}
 
 		certPath := path.Dir(filename)
-		return path.Join(certPath, "/testdata/cert.pem"), path.Join(certPath, "/testdata/priv.key")
-
+		return path.Join(certPath, "../../cert.pem"), path.Join(certPath, "../../priv.key")
+					//Handler:    handler,
+					//Addr:       bCap,
 	}()
 }
+
 func main() {
 	bs := binds{}
 	flag.Var(&bs, "bind", "bind to a certain domain")
@@ -63,8 +65,8 @@ func main() {
 				err = http3.ListenAndServe(bCap, certFile, keyFile, handler)
 			} else {
 				server := http3.Server{
-					Handler:    handler,
-					Addr:       bCap,
+					//Handler:    handler,
+					//Addr:       bCap,
 					QuicConfig: quicConf,
 				}
 				err = server.ListenAndServeTLS(certFile, keyFile)
