@@ -3,15 +3,26 @@ This section aims to learn about the packets during the echo example. First, the
 then will show the packet details.
 
 ## Tools discussion
-There are many popular tools to monitor the TCP network such as `wireshark`, `tcpdump`, `netstat` and so on. As quic 
+There are many popular tools to monitor the network such as `wireshark`, `tcpdump`, `netstat` and so on. As quic 
 underlies the udp protocol, what we should do is to find a useful tool on UDP.
-- wireshark.  
-Wireshark is an open-source software with a good GUI.  
+### Linux networking tools
+- ss:  
+  ss command is a tool that is used for displaying network socket related information on a Linux system.
+
+- tcpdump:
+  Tcpdump is a command line utility that allows you to capture and analyze network traffic going through your system.
+  It is often used to help troubleshoot network issues, as well as a security tool.
+
+- nmap:
+  Nmap is short for Network Mapper. It is an open-source Linux cmd-line tool that is used to scan IPs 
+  & ports in a nw & to detect installed apps. Nmap allows nw admins to find which devices r running 
+  on their nw, discover open ports & services, and detect vulnerabilities.
+
+- dig:
+  Dig (Domain Information Groper) is a powerful cmd-line tool for querying DNS name servers.
+  It allows you to query info abt various DNS records, including host addresses, mail exchanges, 
+  & name servers. A most common tool among sysadmins for troubleshooting DNS problems.
   
-- netstat.  
-Netstat integrates with the Linux administrator and can get manual by `man netstat` on ubuntu(can also visit the 
-  [website](https://linux.die.net/man/8/netstat). However, it's obsolete and is replaced by the more powerful tool `ss`.
-  
-- ss.
-`ss` is a more powerful tool than netstat. Prefer this tool on ubuntu.
+Linux provides many network tools, but if we want to take an eye on the packets the `tcpdump`.
 ## Analysis
+When use `ss` to see the packet details,
