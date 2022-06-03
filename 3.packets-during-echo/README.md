@@ -31,3 +31,9 @@ packets. As a result, I choose the files under `/cert` files:
 ```shell
 quic-example/cert$ openssl x509 -in ca.pem -noout -text
 ```
+
+- Tcpdump to see the udp packets:
+```shell
+sudo tcpdump -nnvXSs 0 -i lo port 4242 -xx -tt
+```
+Ignoring `-X` option can avoid converting hex to text and it helps decrypting.

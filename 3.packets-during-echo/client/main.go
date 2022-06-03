@@ -29,10 +29,12 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	buf := make([]byte, len(message))
 	_, err =stream.Read(buf)
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 	fmt.Printf("Client: Got '%s'\n", buf)
 }
