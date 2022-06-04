@@ -23,8 +23,16 @@ underlies the udp protocol, what we should do is to find a useful tool on UDP.
   It allows you to query info abt various DNS records, including host addresses, mail exchanges, 
   & name servers. A most common tool among sysadmins for troubleshooting DNS problems.
   
-Linux provides many network tools, but if we want to take an eye on the packets the `tcpdump`.
-## Analysis
+Linux provides many network tools, but if we want to take an eye on the packets the `tcpdump`. 
+
+However, `tcpdump` could only dump the udp packets and it's hard to encrypt the quic packets as:
+- quic encapsulates the udp with its own protocol which means I need to analysis udp to quic.
+- quic has explained its packet details with a large scope in RFC9000 so read and analyze the udp packets ourselves 
+cause a messy experience.
+
+In concluding, `wireshark` is a better tool than `tcpdump`.
+
+## Network Analyzing tools
 
 If we want to use tcpdump to see the packets, the key pair and certificate should be fixed as we need it to decrypt the 
 packets. As a result, I choose the files under `/cert` files:
@@ -41,8 +49,7 @@ sudo tcpdump -nnvXSs 0 -i lo port 4242 -xx -tt
 ```
 Ignoring `-X` option can avoid converting hex to text and it helps to decrypt.
 
-### Handshake precedences
-
+## Handshake precedences
 ### Quic Packet format
 Unlike TCP where the packet header format is fixed, QUIC
 has two types of packet headers. QUIC packets for connection establishment need to contain several pieces of information, it uses the long header format. Once a connection is established, only certain header fields are necessary, the subsequent packets use the short header format for efficiency [13].
@@ -67,6 +74,13 @@ is ACKed, it indicates all the frames carried in that packet
 have been received.
 
 ### Initial packet
+The packet content is consisted by the following parts:
+
+- IPv4 header and UDP(user datagram protocol) header.  
+IP header contains 20 bytes(or five 32-bit increments with max 24 bytes). The UDP header is 8 bytes length.
+Note that in the hex displaying mode, every hex character stands for 4 bits(2^4).
+
+- QUIC IETF.  
 The RFC says:
 > Initial packets use an AEAD function, the keys for which are derived using a value that is visible
 on the wire. Initial packets therefore do not have effective confidentiality protection. Initial
@@ -75,4 +89,39 @@ receives an Initial packet from a client can recover the keys that will allow th
 contents of the packet and generate Initial packets that will be successfully authenticated at
 either endpoint. The AEAD also protects Initial packets against accidental modification.
 
+The Initial packet format is:
+```
+Initial Packet {
+  Header Form (1) = 1,
+  Fixed Bit (1) = 1,
+  Long Packet Type (2) = 0,
+  Reserved Bits (2),
+  Packet Number Length (2),
+  Version (32),
+  Destination Connection ID Length (8),
+  Destination Connection ID (0..160),
+  Source Connection ID Length (8),
+  Source Connection ID (0..160),
+  Token Length (i),
+  Token (..),
+  Length (i),
+  Packet Number (8..32),
+  Packet Payload (8..),
+}
+```
+If using `tcpdump` to analyze the packets, remember to remove the IP header and udp header. Here are some details about 
+a quic initial packet:
+![img.png](img/img.png)
+There are some interesting variables in the initial format:
+- Destination/Source connection ID:  
+When the client wants to establish a new connection, the `Destination Connection ID` is valid but the `Source 
+Connection ID` is invalid as null.
+
+- Payload:  
+// todo
+- PADDING:
+// todo
+
+- CRYPTO:
+// todo
 
