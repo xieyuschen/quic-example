@@ -25,8 +25,11 @@ underlies the udp protocol, what we should do is to find a useful tool on UDP.
   
 Linux provides many network tools, but if we want to take an eye on the packets the `tcpdump`.
 ## Analysis
+
 If we want to use tcpdump to see the packets, the key pair and certificate should be fixed as we need it to decrypt the 
 packets. As a result, I choose the files under `/cert` files:
+
+### Commands to see the details
 - See the certificate details:
 ```shell
 quic-example/cert$ openssl x509 -in ca.pem -noout -text
@@ -36,4 +39,40 @@ quic-example/cert$ openssl x509 -in ca.pem -noout -text
 ```shell
 sudo tcpdump -nnvXSs 0 -i lo port 4242 -xx -tt
 ```
-Ignoring `-X` option can avoid converting hex to text and it helps decrypting.
+Ignoring `-X` option can avoid converting hex to text and it helps to decrypt.
+
+### Handshake precedences
+
+### Quic Packet format
+Unlike TCP where the packet header format is fixed, QUIC
+has two types of packet headers. QUIC packets for connection establishment need to contain several pieces of information, it uses the long header format. Once a connection is established, only certain header fields are necessary, the subsequent packets use the short header format for efficiency [13].
+The short header format that is used after the handshake is
+completed is demonstrated in Fig. 4. In each packet, one or
+more frames can be embedded in it and each frame does not
+need to be of the same type as long as it is within the MTU
+limit.
+Each packet in a QUIC connection is assigned a unique
+packet number. This number increases monotonically, indicating the transmission order of packets and is decoupled
+from loss recovery 5
+. Therefore, it can be used to tell easily and accurately about how many packets may be inside the network, as compared to TCP congestion control which
+shares the same flow control window used for reliability.
+QUIC receiver ACKs the largest packet number ever received, together with selective ACK (ACKing all received
+packets below it, coded in continuous packet number ranges)
+as shown in Figure 5. The use of purposely defined ACK
+frames can support up to 256 ACK blocks in one ACK frame,
+as compared to TCP’s 3 SACK ranges due to TCP option field
+size limit. This allows QUIC to ACK received packets repeatedly in multiple ACK frames, leading to higher resiliency
+against packet reordering and losses. When a QUIC packet
+is ACKed, it indicates all the frames carried in that packet
+have been received.
+
+### Initial packet
+The RFC says:
+> Initial packets use an AEAD function, the keys for which are derived using a value that is visible
+on the wire. Initial packets therefore do not have effective confidentiality protection. Initial
+protection exists to ensure that the sender of the packet is on the network path. Any entity that
+receives an Initial packet from a client can recover the keys that will allow them to both read the
+contents of the packet and generate Initial packets that will be successfully authenticated at
+either endpoint. The AEAD also protects Initial packets against accidental modification.
+
+
