@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/lucas-clemente/quic-go"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -18,122 +19,97 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
 )
 
+const (
+	defaultServerDomain = "localhost:4244"
+	certPemPath         = "../../cert/cert.pem"
+	privKeyPath         = "../../cert/priv.key"
+	sslOutputLogPath    = "../ssl.log"
+)
+
 var (
-	defaultServerDomain = "localhost:6121"
-	certFile, keyFile   string
+	certFile, keyFile, sslLogFile string
 )
 
 func init() {
-	certFile, keyFile = func() (string, string) {
-		_, filename, _, ok := runtime.Caller(0)
-		if !ok {
-			panic("Failed to get current frame")
-		}
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("Failed to get current frame")
+	}
 
-		certPath := path.Dir(filename)
-		return path.Join(certPath, "../../cert.pem"), path.Join(certPath, "../../priv.key")
-					//Handler:    handler,
-					//Addr:       bCap,
-	}()
+	certPath := path.Dir(filename)
+	certFile, keyFile, sslLogFile = path.Join(certPath, certPemPath),
+		path.Join(certPath, privKeyPath),
+		path.Join(certPath, sslLogFile)
 }
 
+type SslKeyLog struct{}
+
+func (s SslKeyLog) Write(p []byte) (n int, err error) {
+	file, err := os.OpenFile(sslLogFile, os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		fmt.Printf("failed to open file: %s\n", sslLogFile)
+		return 0, err
+	}
+	return file.Write(p)
+}
 func main() {
-	bs := binds{}
-	flag.Var(&bs, "bind", "bind to a certain domain")
-	www := flag.String("www", "", "www data")
 	tcp := flag.Bool("tcp", false, "also listen on TCP")
 	flag.Parse()
 
-	// set default serve port
-	if len(bs) == 0 {
-		bs = binds{defaultServerDomain}
-	}
+	handler := SetHandler()
+	errCh := make(chan struct{}, 1)
 
-	handler := SetHandler(*www)
-	quicConf := &quic.Config{}
-
-	for _, b := range bs {
-		bCap := b
-		go func() {
-			var err error
-
-			if *tcp {
-				err = http3.ListenAndServe(bCap, certFile, keyFile, handler)
-			} else {
-				server := http3.Server{
-					//Handler:    handler,
-					//Addr:       bCap,
-					QuicConfig: quicConf,
-				}
-				err = server.ListenAndServeTLS(certFile, keyFile)
+	go func() {
+		var err error
+		if *tcp {
+			err = http3.ListenAndServe(defaultServerDomain, certFile, keyFile, handler)
+		} else {
+			server := http3.Server{
+				Server: &http.Server{
+					Handler: handler,
+					Addr:    defaultServerDomain,
+				},
+				QuicConfig: &quic.Config{},
 			}
-			if err != nil {
-				fmt.Printf("failed to listen and serve at %s: %s\n", bCap, err)
-				os.Exit(-1)
-			}
-		}()
-	}
+			err = server.ListenAndServeTLS(certFile, keyFile)
+		}
+		if err != nil {
+			errCh <- struct{}{}
+		}
+	}()
+
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT)
 	for {
-		s := <-ch
-		switch s {
-		case syscall.SIGINT:
-			fmt.Println("exit the ")
-			os.Exit(1)
+		select {
+		case s := <-ch:
+			switch s {
+			case syscall.SIGINT:
+				fmt.Println("exit as receives a SIGINT")
+				os.Exit(1)
+			}
+		case <-errCh:
+			fmt.Printf("failed to listen and serve\n")
 		}
 	}
 }
 
-type binds []string
-
-func (b binds) String() string {
-	return strings.Join(b, ",")
-}
-
-func (b *binds) Set(v string) error {
-	*b = strings.Split(v, ",")
-	return nil
-}
-
-// Size is needed by the /demo/upload handler to determine the size of the uploaded file
-type Size interface {
-	Size() int64
-}
-
-// generatePRData generates random by Lehmer algorithm,
-// See https://en.wikipedia.org/wiki/Lehmer_random_number_generator
-func generatePRData(l int) []byte {
-	res := make([]byte, l)
-	seed := uint64(1)
-	for i := 0; i < l; i++ {
-		seed = seed * 48271 % 2147483647
-		res[i] = byte(seed)
-	}
-	return res
-}
-
-func SetHandler(www string) http.Handler {
+func SetHandler() http.Handler {
 	mux := http.NewServeMux()
 
-	if len(www) > 0 {
-		mux.Handle("/", http.FileServer(http.Dir(www)))
-	} else {
-		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			fmt.Printf("%#v\n", r)
-			const maxSize = 1 << 30 // 1 GB
-			num, err := strconv.ParseInt(strings.ReplaceAll(r.RequestURI, "/", ""), 10, 64)
-			if err != nil || num <= 0 || num > maxSize {
-				w.WriteHeader(400)
-				return
-			}
-			w.Write(generatePRData(int(num)))
-		})
-	}
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("%#v\n", r)
+		const maxSize = 1 << 30 // 1 GB
+		num, err := strconv.ParseInt(strings.ReplaceAll(r.RequestURI, "/", ""), 10, 64)
+		if err != nil || num <= 0 || num > maxSize {
+			w.WriteHeader(400)
+			return
+		}
+		w.Write(generatePRData(int(num)))
+	})
 
 	mux.HandleFunc("/demo/tile", func(w http.ResponseWriter, r *http.Request) {
 		// Small 40x40 png
@@ -194,4 +170,21 @@ func SetHandler(www string) http.Handler {
 	})
 
 	return mux
+}
+
+// Size is needed by the /demo/upload handler to determine the size of the uploaded file
+type Size interface {
+	Size() int64
+}
+
+// generatePRData generates random by Lehmer algorithm,
+// See https://en.wikipedia.org/wiki/Lehmer_random_number_generator
+func generatePRData(l int) []byte {
+	res := make([]byte, l)
+	seed := uint64(1)
+	for i := 0; i < l; i++ {
+		seed = seed * 48271 % 2147483647
+		res[i] = byte(seed)
+	}
+	return res
 }
