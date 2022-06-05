@@ -58,6 +58,7 @@ sudo tcpdump -nnvXSs 0 -i lo port 4242 -xx -tt
 
 Ignoring `-X` option can avoid converting hex to text and it helps to decrypt.
 
+
 ## Handshake precedences
 
 The handshake precedences in the echo demo:
@@ -171,6 +172,8 @@ In [RFC9000-7-Negotiating Connection IDs](https://www.rfc-editor.org/rfc/rfc9000
 > The Destination Connection ID field from the first Initial packet sent by a client is used to determine packet 
 > protection keys for Initial packets. These keys change after receiving a Retry packet.
 
+**This step aims to verify the connection valid for avoiding traffic amplification attack**. The token will be sent to 
+client with a `RETRY` packet.
 
 The code implement details is in 
 `server.go:395 func (s *baseServer) handleInitialImpl(p *receivedPacket, hdr *wire.Header) error`. We could check that 
@@ -224,3 +227,42 @@ func (s *baseServer) sendRetry(remoteAddr net.Addr, hdr *wire.Header, info *pack
   // ignore some lines
 }
 ```
+
+### The second Initial packet
+The second Initial packet takes the token and connection ID from the RETRY packet sent by server. It sends a CRYPTO 
+packet with a TLSv1.3 ClientHello.
+So what's the `TLSv1.3 ClientHello`?
+//todo
+
+## The Handshake packet
+RFC shows the details about handshake, note that **the handshake has 1-RTT, not the whole process which include the 
+initial stages** and **the server side send two packets back, one initial and one Handshake**.
+```
+Client                                               Server
+
+Initial (CRYPTO)
+0-RTT (*)              ---------->
+                                           Initial (CRYPTO)
+                                         Handshake (CRYPTO)
+                       <----------                1-RTT (*)
+Handshake (CRYPTO)
+1-RTT (*)              ---------->
+                       <----------   1-RTT (HANDSHAKE_DONE)
+
+1-RTT                  <=========>                    1-RTT
+```
+Look at the wireshark packets, there are two `QUIC IETF` frames in the packet:
+![img.png](img/initial-and-handshake.png)
+
+[RFC 17.2.4](https://www.rfc-editor.org/rfc/rfc9000.html#name-handshake-packet) tells about the handshake packet format 
+and the wireshark has already analyzed the packet. That's why the wireshark is used here.  
+However, wireshark is not a sliver bullet as I encountered an error in handshake packet:
+```
+Expert Info (Warning/Decryption): Failed to create decryption context: Secrets are not available
+```
+Those packets are encrypted by the TLS session, so we need to find a way to get it.
+//todo
+
+### Protected Payload
+When get the data by wireshark, there are some packets named `protected payload`, what is it?
+

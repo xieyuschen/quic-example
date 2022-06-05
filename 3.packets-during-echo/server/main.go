@@ -7,19 +7,35 @@ import (
 	"github.com/lucas-clemente/quic-go"
 	"io"
 	"log"
+	"os"
 	"path"
 	"runtime"
 )
 
 const (
-	listenAddress = "127.0.0.1:4243"
-	certPemPath="../../cert/cert.pem"
-	privKeyPath="../../cert/priv.key"
+	listenAddress    = "127.0.0.1:4243"
+	certPemPath      = "../../cert/cert.pem"
+	privKeyPath      = "../../cert/priv.key"
+	sslOutputLogPath = "../ssl.log"
 )
-var(
-	certFile, keyFile   string
+
+type SslKeyLog struct{}
+
+func (s SslKeyLog) Write(p []byte) (n int, err error) {
+	file, err := os.OpenFile(sslLogFile, os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		fmt.Printf("failed to open file: %s\n", sslLogFile)
+		return 0, err
+	}
+	return file.Write(p)
+}
+
+var (
+	certFile, keyFile string
+	sslLogFile        string
 )
-func main(){
+
+func main() {
 	// todo: learn x509 and key pair
 	var err error
 	certs := make([]tls.Certificate, 1)
@@ -27,48 +43,47 @@ func main(){
 	if err != nil {
 		panic(err)
 	}
-	tlsConfig:=&tls.Config{
+	tlsConfig := &tls.Config{
 		Certificates: certs,
-		NextProtos: []string{"echo-quic-demo"},
+		NextProtos:   []string{"echo-quic-demo"},
+		KeyLogWriter: SslKeyLog{},
 	}
 
 	fmt.Println("Quic server is running, it will exit after a stream is done")
-	listener,err:=quic.ListenAddr(listenAddress,tlsConfig,nil)
+	listener, err := quic.ListenAddr(listenAddress, tlsConfig, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	conn,err:=listener.Accept(context.Background())
+	conn, err := listener.Accept(context.Background())
 	if err != nil {
 		log.Fatalln(err)
 	}
 	fmt.Printf("Connection is established\n")
-	stream,err:= conn.AcceptStream(context.Background())
+	stream, err := conn.AcceptStream(context.Background())
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Printf("Create a new stream id: %d\n",stream.StreamID())
+	fmt.Printf("Create a new stream id: %d\n", stream.StreamID())
 	// good point!
-	_,err=io.Copy(loggingWriter{Writer:stream},stream)
+	_, err = io.Copy(loggingWriter{Writer: stream}, stream)
 
 	if err != nil {
-		fmt.Printf("stream %d is closed, err:%s\n",stream.StreamID(),err)
+		fmt.Printf("stream %d is closed, err:%s\n", stream.StreamID(), err)
 	}
 }
 
-
-
 func init() {
-	certFile, keyFile = func() (string, string) {
-		_, filename, _, ok := runtime.Caller(0)
-		if !ok {
-			panic("Failed to get current frame")
-		}
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("Failed to get current frame")
+	}
 
-		certFolderPath := path.Dir(filename)
-		return path.Join(certFolderPath, certPemPath), path.Join(certFolderPath,privKeyPath)
-	}()
+	certFolderPath := path.Dir(filename)
+
+	certFile = path.Join(certFolderPath, certPemPath)
+	keyFile = path.Join(certFolderPath, privKeyPath)
+	sslLogFile = path.Join(certFolderPath, sslOutputLogPath)
 }
-
 
 // loggingWriter is a good example that how to wrap a type
 // good point!
@@ -77,9 +92,7 @@ type loggingWriter struct {
 	io.Writer
 }
 
-
-func (w loggingWriter) Write(b []byte)  (int, error) {
+func (w loggingWriter) Write(b []byte) (int, error) {
 	fmt.Printf("Server: Got '%s'\n", string(b))
 	return w.Writer.Write(b)
 }
-
