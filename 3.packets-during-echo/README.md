@@ -260,8 +260,15 @@ However, wireshark is not a sliver bullet as I encountered an error in handshake
 ```
 Expert Info (Warning/Decryption): Failed to create decryption context: Secrets are not available
 ```
-Those packets are encrypted by the TLS session, so we need to find a way to get it.
-//todo
+Those packets are encrypted by the TLS session, so we need to find a way to get it. While finding the solution, there is 
+a reflection could be tracked by [issue todo](). In short, should use the third-party library first no matter which case.
+
+To get the session id, we can add a writer for TLS config and the TLS session is outputed in a specified 
+file(`ssl.log`).  
+
+Note that as we need to obtain the session id to decrypt the quic encrypted packets but the first captured packets file 
+could not serve for this, it is renamed to `echo-packets-old.pcapng` and there is a new one being added named 
+`echo.pcapng`.
 
 ### Protected Payload
 When get the data by wireshark, there are some packets named `protected payload`, what is it?
