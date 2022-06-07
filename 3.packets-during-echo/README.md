@@ -58,6 +58,26 @@ sudo tcpdump -nnvXSs 0 -i lo port 4242 -xx -tt
 
 Ignoring `-X` option can avoid converting hex to text and it helps to decrypt.
 
+## How to decrypt the packets
+Look at the wireshark packets, there are two `QUIC IETF` frames in the packet:
+![img.png](img/initial-and-handshake.png)
+
+[RFC 17.2.4](https://www.rfc-editor.org/rfc/rfc9000.html#name-handshake-packet) tells about the handshake packet format
+and the wireshark has already analyzed the packet. That's why the wireshark is used here.  
+However, wireshark is not a sliver bullet as I encountered an error in handshake packet:
+```
+Expert Info (Warning/Decryption): Failed to create decryption context: Secrets are not available
+```
+Those packets are encrypted by the TLS session, so we need to find a way to get it. While finding the solution, there is
+a reflection could be tracked by [issue5](https://github.com/xieyuschen/quic-example/issues/5).
+In short, should use the third-party library first no matter which case.
+
+To get the session id, we can add a writer for TLS config and the TLS session is outputed in a specified
+file(`ssl.log`).
+
+Note that as we need to obtain the session id to decrypt the quic encrypted packets but the first captured packets file
+could not serve for this, it is renamed to `echo-packets-old.pcapng` and there is a new one being added named
+`echo.pcapng`.
 
 ## Handshake precedences
 
@@ -97,7 +117,7 @@ against packet reordering and losses. When a QUIC packet
 is ACKed, it indicates all the frames carried in that packet
 have been received.
 
-### Initial packet
+### Step1:Initial packet
 
 The packet content is consisted by the following parts:
 
@@ -164,7 +184,7 @@ There are some interesting variables in the initial format:
   The CRYPTO frame encapsulates a TLSv1.3 `ClientHello` directly.
   ![img.png](img/crypto.png)
 
-### Retry packet
+### Step2:Retry packet
 
 For the new one, it's amazing that a retry packet is behind of an initial packet. Let's look up RFC to find out **why 
 the client side gets a RETRY packet**.
@@ -228,13 +248,13 @@ func (s *baseServer) sendRetry(remoteAddr net.Addr, hdr *wire.Header, info *pack
 }
 ```
 
-### The second Initial packet
+### Step3:The second Initial packet
 The second Initial packet takes the token and connection ID from the RETRY packet sent by server. It sends a CRYPTO 
 packet with a TLSv1.3 ClientHello.
 So what's the `TLSv1.3 ClientHello`?
 //todo
 
-## The Handshake packet
+### Step4:The Handshake packet
 RFC shows the details about handshake, note that **the handshake has 1-RTT, not the whole process which include the 
 initial stages** and **the server side send two packets back, one initial and one Handshake**.
 But **(the quic) handshake is different from the cryptographic handshake**, the cryptographic handshake is carried 
@@ -253,26 +273,36 @@ Handshake (CRYPTO)
 
 1-RTT                  <=========>                    1-RTT
 ```
+The most important part in handshake packet is `CRYPTO`. It contains a TLSv1.3 handshake packet which has 
+multiple handshake messages(includes Encrypted extensions, Certificate and Certificate Verify).
 
-### The encrypted payload
-Look at the wireshark packets, there are two `QUIC IETF` frames in the packet:
-![img.png](img/initial-and-handshake.png)
+### Step4:Protected payload after the handshake packet of server
+After the handshake sent by server, there is a `protected packet`. This `protected packet` has two IETF quic packets, 
+one is `CRYPTO` and the other is `NEW_CONNECTION_ID`.
+- IETF packet which contains `CRYPTO` frame:  
+It uses a long header and its `CRYPTO` frame stores tls handshake protocol messages
+  (includes Certificate Verify and finish).  
+  
+- IETF packet which contains `NEW_CONNECTION_ID`:  
+This packet use a **short header** and contains 3 `NEW_CONNECTION_ID` parts.
+  //todo: short header definition. 
+  // why here is 3 `NEW_CONNECTION_ID`?  
+  
+### Step5:Initial(ack) packet from client
+After the server sends the handshake packet which contains the tls handshake packets and the protected payload which 
+contains the `NEW_CONNECTION_ID`, the client sends an ack back with an `Initial` packet.
 
-[RFC 17.2.4](https://www.rfc-editor.org/rfc/rfc9000.html#name-handshake-packet) tells about the handshake packet format 
-and the wireshark has already analyzed the packet. That's why the wireshark is used here.  
-However, wireshark is not a sliver bullet as I encountered an error in handshake packet:
-```
-Expert Info (Warning/Decryption): Failed to create decryption context: Secrets are not available
-```
-Those packets are encrypted by the TLS session, so we need to find a way to get it. While finding the solution, there is 
-a reflection could be tracked by [issue5](https://github.com/xieyuschen/quic-example/issues/5). 
-In short, should use the third-party library first no matter which case.
+### Step6:Handshake packet from client
+Handshake packet contains an ack and a `CRYPTO` which contains a tls handshake `finish` data.
 
-To get the session id, we can add a writer for TLS config and the TLS session is outputed in a specified 
-file(`ssl.log`).  
+### Step6:Two Protected Payload from client
+Two protected payload follows the handshake packet and contain an ACK and a `ENTIRE_CONNECTION_ID`. After it is done, 
+all works in establishing a connection has been ended and the client is waiting to receive an ACK from the server.
+Note that both of those two use the **short header**.
 
-Note that as we need to obtain the session id to decrypt the quic encrypted packets but the first captured packets file 
-could not serve for this, it is renamed to `echo-packets-old.pcapng` and there is a new one being added named 
-`echo.pcapng`.
+### Step7:Handshake packet from server
+The server sends back an ACK with a **short header**. After receiving this packet, a connection has been established 
+for both endpoints.
 
-
+### todo:
+Continue to find out how to create a stream and how connection Id, congestion flow information, etc are exchanged.
