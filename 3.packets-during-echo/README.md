@@ -237,6 +237,8 @@ So what's the `TLSv1.3 ClientHello`?
 ## The Handshake packet
 RFC shows the details about handshake, note that **the handshake has 1-RTT, not the whole process which include the 
 initial stages** and **the server side send two packets back, one initial and one Handshake**.
+But **(the quic) handshake is different from the cryptographic handshake**, the cryptographic handshake is carried 
+in Initial and Handshake packets.
 ```
 Client                                               Server
 
@@ -251,6 +253,8 @@ Handshake (CRYPTO)
 
 1-RTT                  <=========>                    1-RTT
 ```
+
+### The encrypted payload
 Look at the wireshark packets, there are two `QUIC IETF` frames in the packet:
 ![img.png](img/initial-and-handshake.png)
 
@@ -260,9 +264,15 @@ However, wireshark is not a sliver bullet as I encountered an error in handshake
 ```
 Expert Info (Warning/Decryption): Failed to create decryption context: Secrets are not available
 ```
-Those packets are encrypted by the TLS session, so we need to find a way to get it.
-//todo
+Those packets are encrypted by the TLS session, so we need to find a way to get it. While finding the solution, there is 
+a reflection could be tracked by [issue5](https://github.com/xieyuschen/quic-example/issues/5). 
+In short, should use the third-party library first no matter which case.
 
-### Protected Payload
-When get the data by wireshark, there are some packets named `protected payload`, what is it?
+To get the session id, we can add a writer for TLS config and the TLS session is outputed in a specified 
+file(`ssl.log`).  
+
+Note that as we need to obtain the session id to decrypt the quic encrypted packets but the first captured packets file 
+could not serve for this, it is renamed to `echo-packets-old.pcapng` and there is a new one being added named 
+`echo.pcapng`.
+
 

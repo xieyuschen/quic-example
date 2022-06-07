@@ -6,6 +6,8 @@ import (
 	"crypto/x509"
 	"flag"
 	"fmt"
+	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/http3"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,38 +15,36 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"sync"
+)
 
-	"github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/http3"
+const (
+	serverDomain     = "https://localhost:4244"
+	certPemPath      = "../../cert/cert.pem"
+	privKeyPath      = "../../cert/priv.key"
+	sslOutputLogPath = "../ssl.log"
 )
 
 var (
-	caCertPath string
+	certFile, keyFile, sslLogFile string
 )
 
 func init() {
-	caCertPath = func() string {
-		_, filename, _, ok := runtime.Caller(0)
-		if !ok {
-			panic("Failed to get current frame")
-		}
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("Failed to get current frame")
+	}
 
-		certPath := path.Dir(filename)
-		return path.Join(certPath, "/testdata/ca.pem")
-	}()
+	certPath := path.Dir(filename)
+	certFile, keyFile, sslLogFile = path.Join(certPath, certPemPath),
+		path.Join(certPath, privKeyPath),
+		path.Join(certPath, sslLogFile)
 }
-
 func main() {
-	quiet := flag.Bool("q", false, "don't print the data")
 	keyLogFile := flag.String("keylog", "", "key log file")
 	insecure := flag.Bool("insecure", false, "skip certificate verification")
 	flag.Parse()
+
 	fmt.Println("Start http3 client")
-	urls := flag.Args()
-	if len(urls) == 0 {
-		urls = append(urls, "https://localhost:6121")
-	}
 
 	var keyLog io.Writer
 	if len(*keyLogFile) > 0 {
@@ -60,7 +60,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	caCertRaw, err := ioutil.ReadFile(caCertPath)
+	caCertRaw, err := ioutil.ReadFile(certFile)
 	if err != nil {
 		panic(err)
 	}
@@ -83,30 +83,24 @@ func main() {
 		Transport: roundTripper,
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(len(urls))
-	for _, addr := range urls {
+	doneCh:=make(chan struct{},1)
+	go func(addr string) {
 		fmt.Printf("GET %s", addr)
-		go func(addr string) {
-			rsp, err := hclient.Get(addr)
-			if err != nil {
-				log.Fatal(err)
-			}
-			fmt.Printf("Got response for %s: %#v", addr, rsp)
+		rsp, err := hclient.Get(addr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("Got response for %s: %#v", addr, rsp)
 
-			body := &bytes.Buffer{}
-			_, err = io.Copy(body, rsp.Body)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if *quiet {
-				fmt.Printf("Response Body: %d bytes", body.Len())
-			} else {
-				fmt.Printf("Response Body:")
-				fmt.Printf("%s", body.Bytes())
-			}
-			wg.Done()
-		}(addr)
-	}
-	wg.Wait()
+		body := &bytes.Buffer{}
+		_, err = io.Copy(body, rsp.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("Response Body: %d bytes", body.Len())
+		fmt.Printf("Response Body:")
+		fmt.Printf("%s", body.Bytes())
+		doneCh<- struct{}{}
+	}(serverDomain)
+	<-doneCh
 }

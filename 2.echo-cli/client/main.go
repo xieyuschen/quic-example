@@ -30,7 +30,7 @@ func main() {
 		log.Fatalln(err)
 	}
 	buf := make([]byte, len(message))
-	_, err =stream.Read(buf)
+	_, err = stream.Read(buf)
 	if err != nil {
 		log.Fatalln(err)
 	}
