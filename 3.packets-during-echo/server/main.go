@@ -19,17 +19,6 @@ const (
 	sslOutputLogPath = "../ssl.log"
 )
 
-type SslKeyLog struct{}
-
-func (s SslKeyLog) Write(p []byte) (n int, err error) {
-	file, err := os.OpenFile(sslLogFile, os.O_RDWR|os.O_CREATE, 0755)
-	if err != nil {
-		fmt.Printf("failed to open file: %s\n", sslLogFile)
-		return 0, err
-	}
-	return file.Write(p)
-}
-
 var (
 	certFile, keyFile string
 	sslLogFile        string
@@ -43,10 +32,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	file, err := os.OpenFile(sslLogFile, os.O_RDWR|os.O_CREATE, 0755)
+	defer file.Close()
+	if err != nil {
+		panic(err)
+	}
 	tlsConfig := &tls.Config{
 		Certificates: certs,
 		NextProtos:   []string{"echo-quic-demo"},
-		KeyLogWriter: SslKeyLog{},
+		KeyLogWriter: file,
 	}
 
 	fmt.Println("Quic server is running, it will exit after a stream is done")
