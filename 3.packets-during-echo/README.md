@@ -48,6 +48,8 @@ has two types of packet headers.
 - Protected payload packet:  
 
 ## Handshake procedures
+In the echo example here, the workflow between client and server looks like as the following:
+![](img/echo-workflow.png)
 
 ### Step1:Initial packet
 
