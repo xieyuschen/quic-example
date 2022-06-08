@@ -48,10 +48,14 @@ has two types of packet headers.
 - Protected payload packet:  
 
 ## Handshake procedures
-In the echo example here, the workflow between client and server looks like as the following:
+In the echo example here, the workflow between client and server looks like as the following, 
+the origin line in the workflow picture separates connection establishing and stream establishing.
+
+
 ![](img/echo-workflow.png)
 
-### Step1:Initial packet
+
+### Step1: Initial packet from client
 
 The packet content is consisted by the following parts:
 
@@ -118,17 +122,20 @@ There are some interesting variables in the initial format:
   The CRYPTO frame encapsulates a TLSv1.3 `ClientHello` directly.
   ![img.png](img/crypto.png)
 
-### Step2:Retry packet
+### Step2: Retry packet from server
+The retry packet aims to:  
+- start to negotiate the connection id.
+- pass the token to client.
 
-For the new one, it's amazing that a retry packet is behind of an initial packet. Let's look up RFC to find out **why 
-the client side gets a RETRY packet**.
-In [RFC9000-7-Negotiating Connection IDs](https://www.rfc-editor.org/rfc/rfc9000.html#name-negotiating-connection-ids)
+[RFC9000-7-Negotiating Connection IDs](https://www.rfc-editor.org/rfc/rfc9000.html#name-negotiating-connection-ids) says:
+
 > The Destination Connection ID field from the first Initial packet sent by a client is used to determine packet 
 > protection keys for Initial packets. These keys change after receiving a Retry packet.
 
-**This step aims to verify the connection valid for avoiding traffic amplification attack**. The token will be sent to 
-client with a `RETRY` packet.
+**This step aims to verify the connection valid for avoiding traffic amplification attack** and 
+the token will be sent to client with a `RETRY` packet.
 
+#### Code implement details in quic-go
 The code implement details is in 
 `server.go:395 func (s *baseServer) handleInitialImpl(p *receivedPacket, hdr *wire.Header) error`. We could check that 
 in which case the server side will send a `RETRY` packet.
@@ -182,35 +189,24 @@ func (s *baseServer) sendRetry(remoteAddr net.Addr, hdr *wire.Header, info *pack
 }
 ```
 
-### Step3:The second Initial packet
-The second Initial packet takes the token and connection ID from the RETRY packet sent by server. It sends a CRYPTO 
-packet with a TLSv1.3 ClientHello.
-So what's the `TLSv1.3 ClientHello`?
-//todo
+### Step3: The second Initial packet from client
+The Initial packet aims to:
+- send `TLSv1.3 ClientHello` to server.
 
-### Step4:The Handshake packet
-RFC shows the details about handshake, note that **the handshake has 1-RTT, not the whole process which include the 
-initial stages** and **the server side send two packets back, one initial and one Handshake**.
-But **(the quic) handshake is different from the cryptographic handshake**, the cryptographic handshake is carried 
-in Initial and Handshake packets.
-```
-Client                                               Server
 
-Initial (CRYPTO)
-0-RTT (*)              ---------->
-                                           Initial (CRYPTO)
-                                         Handshake (CRYPTO)
-                       <----------                1-RTT (*)
-Handshake (CRYPTO)
-1-RTT (*)              ---------->
-                       <----------   1-RTT (HANDSHAKE_DONE)
+### Step4: The Handshake packet from server
+The Handshake packet aims to:  
+- Send ack back.
+- Make a server hello to client.
+- Send multiple handshake messages(includes Encrypted extensions, Certificate and Certificate Verify).
 
-1-RTT                  <=========>                    1-RTT
-```
-The most important part in handshake packet is `CRYPTO`. It contains a TLSv1.3 handshake packet which has 
-multiple handshake messages(includes Encrypted extensions, Certificate and Certificate Verify).
 
-### Step4:Protected payload after the handshake packet of server
+### Step4: Protected payload after the handshake packet of server
+The Protected payload packet aims to:
+- send `CRYPTO` with multiple handshake message(includes Certificate Verify and finish).
+- send `NEW_CONNECTION_ID`.
+
+
 After the handshake sent by server, there is a `protected packet`. This `protected packet` has two IETF quic packets, 
 one is `CRYPTO` and the other is `NEW_CONNECTION_ID`.
 - IETF packet which contains `CRYPTO` frame:  
@@ -220,13 +216,21 @@ It uses a long header and its `CRYPTO` frame stores tls handshake protocol messa
 - IETF packet which contains `NEW_CONNECTION_ID`:  
 This packet use a **short header** and contains 3 `NEW_CONNECTION_ID` parts.
   //todo: short header definition. 
-  // why here is 3 `NEW_CONNECTION_ID`?  
-  
-### Step5:Initial(ack) packet from client
+  // why here is 3 `NEW_CONNECTION_ID`?
+
+
+### Step5: Initial packet from client
+The Initial packet aims to:
+- send ack to server.
+
 After the server sends the handshake packet which contains the tls handshake packets and the protected payload which 
 contains the `NEW_CONNECTION_ID`, the client sends an ack back with an `Initial` packet.
 
-### Step6:Handshake packet from client
+### Step6: Handshake packet from client
+The Handshake packet aims to:
+- send ack to server.
+- send handshake `finish` to server.
+
 Handshake packet contains an ack and a `CRYPTO` which contains a tls handshake `finish` data.
 
 ### Step6:Two Protected Payload from client
