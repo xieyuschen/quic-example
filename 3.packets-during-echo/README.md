@@ -43,34 +43,38 @@ as version negotiating, ensure cipher, exchange the certificated data and genera
   signature.
 - Generate session keys in order to use symmetric encryption after the handshake is complete.
 
+Note that QUIC **uses TLSv1.3 which based on the ephemeral Diffie-Hellman algorithm**.
+
 ### Steps in TLS handshake
 
-1. The 'client hello' message.  
+1. The `client hello` message.  
    `client hello` sends:
+   - TLS version the client supports.
+   - cipher suites supported.
+   - a string of random bytes known as the `client random`.
 
-- TLS version the client supports.
-- cipher suites supported.
-- a string of random bytes known as the `client random`.
-
-2. The 'server hello' message  
+2. The `server hello` message  
    `server hello` replies the `client hello` with:
+   - server's SSL certificate.
+   - the server's chosen cipher suite.
+   - server random.
 
-- server's SSL certificate.
-- the server's chosen cipher suite.
-- server random.
+3. Server's digital signature  
+The server uses its private key to encrypt the client random, the server random, and its DH parameter*. 
+This encrypted data functions as the server's digital signature, establishing that the server has the private key that 
+matches with the public key from the SSL certificate.
 
-3. Authentication  
-   The client verifies the server's SSL certificate with the certificate authority that issued it.
 
-4. The premaster secret  
-   Client sends one more random string of bytes, the `premaster` secret which is encrypted with the public key.
+4. Digital signature confirmed  
+The client decrypts the server's digital signature with the public key, verifying that the server controls the 
+private key and is who it says it is. Client DH parameter: The client sends its DH parameter to the server.
 
-5. Private key used  
-   The server decrypts the premaster secret.
+5. Client and server calculate the premaster secret  
+The client and server use the DH parameters they exchanged to calculate a matching premaster secret separately.
 
 6. Session keys created  
    This step generates the session.Both client and server generate session keys from the client random, the server random,
-   and the premaster secret. They should arrive at the same results.
+   and the premaster secret. **They should arrive at the same results**.
 
 7. Client is ready  
    The client sends a "finished" message that is encrypted with a session key.
@@ -81,6 +85,10 @@ as version negotiating, ensure cipher, exchange the certificated data and genera
 9. Secure symmetric encryption achieved  
    The handshake is completed, and communication continues using the session keys.
 
+
+*DH parameter: DH stands for Diffie-Hellman. The Diffie-Hellman algorithm uses exponential calculations to arrive at 
+the same premaster secret. The server and client each provide a parameter for the calculation, and when combined they 
+result in a different calculation on each side, with results that are equal.
 ## Quic Packet format
 
 Quic packet format is defined by RFC 9000 and you can view it to find
@@ -116,70 +124,37 @@ the origin line in the workflow picture separates connection establishing and st
 
 ### Step1: Initial packet from client
 
-The packet content is consisted by the following parts:
+[RFC 17.2.2](https://www.rfc-editor.org/rfc/rfc9000.html#section-17.2.2) shows the Initial packet format. As we use 
+wireshark to analyze the packet and it has already unmarshalled the packets, here won't explain format too much but 
+only note some points.
 
-- IPv4 header and UDP(user datagram protocol) header.  
-  IP header contains 20 bytes(or five 32-bit increments with max 24 bytes). The UDP header is 8 bytes length.
-  Note that in the hex displaying mode, every hex character stands for 4 bits(2^4).
+- Quic is based on the UDP and IP layer, so it contains IP packet and UDP packet. IP header contains 20 bytes(or five 
+  32-bit increments with max 24 bytes). The UDP header is 8 bytes length. Note that in the hex displaying mode, every 
+  hex character stands for 4 bits(2^4).
 
-- QUIC IETF.  
-  The RFC says:
-  > Initial packets use an AEAD function, the keys for which are derived using a value that is visible
-  > on the wire. Initial packets therefore do not have effective confidentiality protection. Initial
-  > protection exists to ensure that the sender of the packet is on the network path. Any entity that
-  > receives an Initial packet from a client can recover the keys that will allow them to both read the
-  > contents of the packet and generate Initial packets that will be successfully authenticated at
-  > either endpoint. The AEAD also protects Initial packets against accidental modification.
+In step1, the initial packet is shown as the following picture:
+  ![img.png](img/1-initial.png)
 
-The Initial packet format is:
-
-```
-Initial Packet {
-  Header Form (1) = 1,
-  Fixed Bit (1) = 1,
-  Long Packet Type (2) = 0,
-  Reserved Bits (2),
-  Packet Number Length (2),
-  Version (32),
-  Destination Connection ID Length (8),
-  Destination Connection ID (0..160),
-  Source Connection ID Length (8),
-  Source Connection ID (0..160),
-  Token Length (i),
-  Token (..),
-  Length (i),
-  Packet Number (8..32),
-  Packet Payload (8..),
-}
-```
-
-If using `tcpdump` to analyze the packets, remember to remove the IP header and udp header. Here are some details about
-a quic initial packet:
-
-There are some interesting variables in the initial format:
-
-- Destination/Source connection ID:  
-  When the client wants to establish a new connection, the `Destination Connection ID` is valid but the `Source Connection ID` is invalid as null. However, in
-  [7.2.3-Negotiating Connection IDs](https://www.rfc-editor.org/rfc/rfc9000.html#section-7.2-3):
+- Random Destination Connection ID and empty Source Connection ID:  
+  When the client wants to establish a new connection, the `Destination Connection ID` is valid but the 
+  `Source Connection ID` is invalid as null. 
+  [7.2.3-Negotiating Connection IDs](https://www.rfc-editor.org/rfc/rfc9000.html#section-7.2-3) says:
 
   > When an Initial packet is sent by a client that has not previously received an Initial or Retry packet from the
   > server, the client populates the Destination Connection ID field with an unpredictable value. This Destination
   > Connection ID MUST be at least 8 bytes in length. Until a packet is received from the server, the client MUST use
   > the same Destination Connection ID value on all packets in this connection.
+  
+  So in step1, the Destination Connection Id is generated by client side.
 
-  As a result, the finial connection ID will be generated from the server/
+- empty token:  
+Token is used to validate the address to avoid attacking and it's generated by server. 
+So the step1 takes an empty token.
 
-- token:  
-  A variable-length integer specifying the length of the Token field, in bytes.
-  This value is 0 if no token is present. Initial packets sent by the server MUST set the Token Length field to 0;
-  clients that receive an Initial packet with a non-zero Token Length field MUST either discard the packet or
-  generate a connection error of type PROTOCOL_VIOLATION.
-
-- CRYPTO:
+- CRYPTO: client hello
   The first packet sent by a client always includes a CRYPTO frame that contains the start or all of the first
   cryptographic handshake message. The first CRYPTO frame sent always begins at an offset of 0.
   The CRYPTO frame encapsulates a TLSv1.3 `ClientHello` directly.
-  ![img.png](img/crypto.png)
 
 ### Step2: Retry packet from server
 
@@ -187,6 +162,8 @@ The retry packet aims to:
 
 - start to negotiate the connection id.
 - pass the token to client.
+
+![img.png](img/2-retry.png)
 
 [RFC9000-7-Negotiating Connection IDs](https://www.rfc-editor.org/rfc/rfc9000.html#name-negotiating-connection-ids) says:
 
@@ -260,15 +237,23 @@ func (s *baseServer) sendRetry(remoteAddr net.Addr, hdr *wire.Header, info *pack
 
 The Initial packet aims to:
 
-- send `TLSv1.3 ClientHello` to server.
-
+- send initial packet with the following values got from `RETRY`:
+  - Token from retry.
+  - Destination Connection ID from retry.
+  - Client hello in `CRYPTO` frame.
+  
 ### Step4: The Handshake packet from server
 
 The Handshake packet aims to:
 
-- Send ack back.
-- Make a server hello to client.
-- Send multiple handshake messages(includes Encrypted extensions, Certificate and Certificate Verify).
+- Send an ACK back.
+- Send a Source Connection ID.
+- Make a server hello to client and send multiple handshake messages (includes Encrypted extensions, Certificate 
+and Certificate Verify). This step mixes multiple steps in TLS handshake shown up.
+
+The ack make sure the reliability in quic, say [RFC 13.2.1](https://www.rfc-editor.org/rfc/rfc9000.html#section-13.1-3).
+
+(TODO: learn more about the reliability implement details).
 
 ### Step4: Protected payload after the handshake packet of server
 
