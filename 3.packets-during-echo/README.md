@@ -259,7 +259,7 @@ The ack make sure the reliability in quic, say [RFC 13.2.1](https://www.rfc-edit
 
 The Protected payload packet aims to:
 
-- send `CRYPTO` with multiple handshake message(includes Certificate Verify and finish).
+- send `CRYPTO` with multiple handshake message(step3-Server's digital signature) in TLS establish.
 - send `NEW_CONNECTION_ID`.
 
 After the handshake sent by server, there is a `protected packet`. This `protected packet` has two IETF quic packets,
@@ -278,7 +278,7 @@ one is `CRYPTO` and the other is `NEW_CONNECTION_ID`.
 
 The Initial packet aims to:
 
-- send ack to server.
+- send an ACK to server.
 
 After the server sends the handshake packet which contains the tls handshake packets and the protected payload which
 contains the `NEW_CONNECTION_ID`, the client sends an ack back with an `Initial` packet.
@@ -290,19 +290,21 @@ The Handshake packet aims to:
 - send ack to server.
 - send handshake `finish` to server.
 
+In this step, **TLS connection has been established**!  
+
 Handshake packet contains an ack and a `CRYPTO` which contains a tls handshake `finish` data.
 
 ### Step6:Two Protected Payload from client
+- The first one sends an ACK back.
+- The second one sends an `ENTIRE_CONNECTION_ID`.
 
-Two protected payload follows the handshake packet and contain an ACK and a `ENTIRE_CONNECTION_ID`. After it is done,
-all works in establishing a connection has been ended and the client is waiting to receive an ACK from the server.
+After they are done, all works in establishing a connection has been ended and the client is waiting to receive an ACK 
+from the server.  
+
 Note that both of those two use the **short header**.
 
 ### Step7:Handshake packet from server
 
-The server sends back an ACK with a **short header**. After receiving this packet, a connection has been established
-for both endpoints.
+The server sends back an ACK with a **short header**. 
 
-### todo:
-
-Continue to find out how to create a stream and how connection Id, congestion flow information, etc are exchanged.
+Note that after receiving this packet, **a connection has been established for both endpoints**.
