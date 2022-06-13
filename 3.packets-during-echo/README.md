@@ -89,6 +89,7 @@ The client and server use the DH parameters they exchanged to calculate a matchi
 *DH parameter: DH stands for Diffie-Hellman. The Diffie-Hellman algorithm uses exponential calculations to arrive at 
 the same premaster secret. The server and client each provide a parameter for the calculation, and when combined they 
 result in a different calculation on each side, with results that are equal.
+
 ## Quic Packet format
 
 Quic packet format is defined by RFC 9000 and you can view it to find
@@ -115,7 +116,7 @@ has two types of packet headers.
 - Handshake packet:
 - Protected payload packet:
 
-## Handshake procedures
+## Quic connection handshake procedures
 
 In the echo example here, the workflow between client and server looks like as the following,
 the origin line in the workflow picture separates connection establishing and stream establishing.
@@ -283,7 +284,7 @@ The Initial packet aims to:
 After the server sends the handshake packet which contains the tls handshake packets and the protected payload which
 contains the `NEW_CONNECTION_ID`, the client sends an ack back with an `Initial` packet.
 
-### Step6: Handshake packet from client
+### Step5: Handshake packet from client
 
 The Handshake packet aims to:
 
@@ -294,7 +295,7 @@ In this step, **TLS connection has been established**!
 
 Handshake packet contains an ack and a `CRYPTO` which contains a tls handshake `finish` data.
 
-### Step6:Two Protected Payload from client
+### Step5:Two Protected Payload from client
 - The first one sends an ACK back.
 - The second one sends an `ENTIRE_CONNECTION_ID`.
 
@@ -303,8 +304,33 @@ from the server.
 
 Note that both of those two use the **short header**.
 
-### Step7:Handshake packet from server
+### Step6:Handshake packet from server
 
 The server sends back an ACK with a **short header**. 
 
 Note that after receiving this packet, **a connection has been established for both endpoints**.
+
+
+## Quic stream handshake procedures
+Quic stream based on the quic connection. In the workflow picture, establishing the quic stream starts at step7.
+
+### Step7: Payload from client to server
+- use short quic header.
+- stream information such as id, bidirectional and son on.
+- **send data to the server**.  
+
+Quic allows users to send data without establishing a stream.
+
+![img.png](img/send-data-before-establishing.png)
+
+
+### Step8: Server replies the payload from the client
+In step8, there are three packets:
+- First packet: sends ACK.  
+- Second packet: HANDSHAKE_DONE, NEW_TOKEN and `New session ticket` in CRYPTO.
+- Third packet: An ACK and echo data `Hello world` as echo back. **Note that currently the stream is still 
+establishing**.  
+
+### Step9: Client sends an ACK back
+After receiving all of three packets, the client sends an ACK back. Eventually, the interactions between client and 
+server echo has ended here.
