@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/lucas-clemente/quic-go"
+	"github.com/xieyuschen/quic-example/util"
 	"io"
 	"log"
 	"os"
@@ -23,6 +24,18 @@ var (
 	certFile, keyFile string
 	sslLogFile        string
 )
+
+func init() {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("Failed to get current frame")
+	}
+
+	certFolderPath := path.Dir(filename)
+
+	certFile, keyFile = util.GetCertFilesPath()
+	sslLogFile = path.Join(certFolderPath, sslOutputLogPath)
+}
 
 func main() {
 	// todo: learn x509 and key pair
@@ -64,19 +77,6 @@ func main() {
 	if err != nil {
 		fmt.Printf("stream %d is closed, err:%s\n", stream.StreamID(), err)
 	}
-}
-
-func init() {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		panic("Failed to get current frame")
-	}
-
-	certFolderPath := path.Dir(filename)
-
-	certFile = path.Join(certFolderPath, certPemPath)
-	keyFile = path.Join(certFolderPath, privKeyPath)
-	sslLogFile = path.Join(certFolderPath, sslOutputLogPath)
 }
 
 // loggingWriter is a good example that how to wrap a type
