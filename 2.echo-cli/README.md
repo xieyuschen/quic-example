@@ -108,7 +108,7 @@ v                           v
 +-------+                   +-------+
 ```
 The RFC 9000 tells:
-> In the "Send" state, an endpoint transmits -- and retransmits as necessary -- stream data in
+> In the "Send" state, an endpoint transmits -- and retransmits if necessary -- stream data in
 STREAM frames. The endpoint uses the ﬂow control limits set by its peer and continues to
 accept and process MAX_STREAM_DATA frames. An endpoint in the "Send" state generates
 STREAM_DATA_BLOCKED frames if it is blocked from sending by stream ﬂow control limits.
