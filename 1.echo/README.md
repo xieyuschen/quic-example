@@ -1,6 +1,6 @@
 ## Echo
 Run `go run echo.go` under the [echo demo](echo.go) path.  
-The demo runs sucessfully if you can see the logs.
+You are successful to run the echo demo when you see the logs.
 ```
 Client: Sending 'foobar'
 Server: Got 'foobar'
