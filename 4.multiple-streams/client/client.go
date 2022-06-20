@@ -45,6 +45,6 @@ func main() {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		fmt.Printf("%sClient: Got '%s'\n", reset, buf)
+		fmt.Printf("%sGot '%s' from stream %d.", reset, buf, stream.StreamID())
 	}
 }

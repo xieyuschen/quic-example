@@ -8,6 +8,7 @@ import (
 	"github.com/xieyuschen/quic-example/util"
 	"io"
 	"log"
+	"net"
 )
 
 const (
@@ -33,9 +34,9 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 	for {
 		conn, err := listener.Accept(context.Background())
+
 		if err != nil {
 			fmt.Printf("encounter error when accept: %s\n", err)
 			continue
@@ -48,6 +49,10 @@ func handleQuicConnection(conn quic.Connection) {
 	for {
 		// why AcceptStream receives a context?
 		stream, err := conn.AcceptStream(context.Background())
+
+		if err, ok := err.(net.Error); err != nil && ok && err.Timeout() {
+			continue
+		}
 		if err != nil {
 			log.Printf("failed to accept a quic stream,err: %s\n", err)
 			continue
