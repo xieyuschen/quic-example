@@ -7,12 +7,9 @@ In this project, client side supports to make many stream request with a same co
 to continue and enter `q` to quit.
 
 ## Things to explore
-### All streamId could be divided by 4 fully
-Investigate why all stream IDs has the relationship `id%4 == 0` and how it is generated.
+To be honest, quic is similar to tcp as all of them are both in transport layer. When we use a tcp based application, 
+all we should pay attention is how to handle the stream based protocol to application protocol.  
 
-//TODO
-
-### Cannot get the connection ID
-The quic could not get the connection ID, investigate more about the connection ID.  
-
-//TODO
+In this chapter, we only shortly answer some questions raised when run the demo code. In the following chapters, I think
+I should focus on what's the new feature provided by quic, what's the advances of quic and what's the suitable cases for 
+the quic.

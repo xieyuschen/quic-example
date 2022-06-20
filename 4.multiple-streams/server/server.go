@@ -47,8 +47,9 @@ func main() {
 
 func handleQuicConnection(conn quic.Connection) {
 	for {
+		ctx := context.Background()
 		// why AcceptStream receives a context?
-		stream, err := conn.AcceptStream(context.Background())
+		stream, err := conn.AcceptStream(ctx)
 
 		if err, ok := err.(net.Error); err != nil && ok && err.Timeout() {
 			continue
