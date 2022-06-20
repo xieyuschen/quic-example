@@ -9,7 +9,7 @@ Running this example requires starting the server and client separately.
 - start client  
   Use args to specify the destination. If no args, the client make a request to `https://localhost:6121/` by default.
 ```shell
-  # under server-and-client/server
+  # under http3-demo/server
   go run main.go https://localhost:8080
 ```
 The client ca file is stored under [client/testdata](./client/testdata).
