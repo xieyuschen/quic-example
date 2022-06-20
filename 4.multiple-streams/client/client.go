@@ -10,12 +10,14 @@ import (
 const (
 	peerAddress = "127.0.0.1:4244"
 	message     = "Hello, multiple streams handling server"
+	green       = "\033[97;42m"
+	reset       = "\033[0m"
 )
 
 func main() {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
-		NextProtos:         []string{"quic-demo"},
+		NextProtos:         []string{"multiple-streams-quic-demo"},
 	}
 	conn, err := quic.DialAddr(peerAddress, tlsConfig, nil)
 	if err != nil {
@@ -23,7 +25,7 @@ func main() {
 	}
 	for {
 		var s byte
-		fmt.Printf("Enter q to quit and any else to continue\n")
+		fmt.Printf("\n%sEnter q to quit and any else to continue%s", green, reset)
 		_, _ = fmt.Scanf("%d", &s)
 		if s == 'q' {
 			fmt.Printf("exit the client echo demo\n")
@@ -43,6 +45,6 @@ func main() {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		fmt.Printf("Client: Got '%s'\n", buf)
+		fmt.Printf("%sClient: Got '%s'\n", reset, buf)
 	}
 }
