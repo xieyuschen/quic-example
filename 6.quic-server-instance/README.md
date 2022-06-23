@@ -32,3 +32,31 @@ manager. The reason for this is that the handler should bind with the `connMulti
 
 The function could of course call directly instead of being stored in the `connMultiplexer` but this is not a good as 
 it introduces complexity if we want to change the handler to a different implementation.
+
+Of course, this might be the habit of the user.
+
+## Server-ConnMultiplexer-PacketHandlerManager
+The abstraction in quic-go does quite well. The server start and then enroll ConnMultiplexer and PacketHandlerManager. 
+All of them connect the other through interface, instead of concreted struct.
+
+- Server:  
+The server starts a `run` method in another go routine to detect whether there is a new packet to handle, if there is,
+it will call `handlePacketImpl` to handle the packet.
+
+- PacketHandlerManager:  
+The packet handler manager is responsible for handling the packet. It is a stateless handler. It is a singleton. It 
+executes the `newPacketHandlerMap` to create a new packet handler map and then call `go m.listen()` to listen on the 
+`packetHandlerManager`. 
+
+If there comes new packets, it will use channel to inform the server by `s.receivedPackets <- p` and it is captured by 
+the endless loop in `run` method.  
+**It's the duty to call `s.handlePacketImpl` to handle the packet**. Each connection has its own packet handler/manager.
+
+- ConnMultiplexer:  
+The ConnMultiplexer is responsible for listening on the net.PacketConn and creating a new PacketHandlerManager. As there 
+comes packets first, a connection later. **It is a singleton and a stateless handler**.
+
+The `ConnMultiplexer` doesn't charge for handling connection details. It just listens on the net.PacketConn and create 
+`packetHandlerManager` for each connection. After the connection being established, the connection will be created by 
+the server function `func (s *baseServer) handleInitialImpl(p *receivedPacket, hdr *wire.Header) error` and start a new 
+go routine to handle the connection packet with function call `go conn.run()`.
