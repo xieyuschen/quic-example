@@ -6,13 +6,12 @@ import (
 )
 
 const (
-	udpAddr="localhost:9000"
+	udpAddr = "localhost:9000"
 )
 
-
-func main(){
-	conn,err:=net.Dial("udp",udpAddr)
-	if err!=nil{
+func main() {
+	conn, err := net.Dial("udp", udpAddr)
+	if err != nil {
 		panic(err)
 	}
 	conn.Write([]byte("hello"))

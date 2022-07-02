@@ -83,7 +83,7 @@ func main() {
 		Transport: roundTripper,
 	}
 
-	doneCh:=make(chan struct{},1)
+	doneCh := make(chan struct{}, 1)
 	go func(addr string) {
 		fmt.Printf("GET %s", addr)
 		rsp, err := hclient.Get(addr)
@@ -100,7 +100,7 @@ func main() {
 		fmt.Printf("Response Body: %d bytes", body.Len())
 		fmt.Printf("Response Body:")
 		fmt.Printf("%s", body.Bytes())
-		doneCh<- struct{}{}
+		doneCh <- struct{}{}
 	}(serverDomain)
 	<-doneCh
 }

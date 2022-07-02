@@ -7,18 +7,17 @@ import (
 )
 
 const (
-	tcpAddr="localhost:9001"
+	tcpAddr = "localhost:9001"
 )
 
 func TestTcpServer(t *testing.T) {
-	li,err:=net.Listen("tcp",tcpAddr)
-	if err!=nil{
+	li, err := net.Listen("tcp", tcpAddr)
+	if err != nil {
 		panic(err)
 	}
-	for{
-		c,_:=li.Accept()
-		io.Copy(c,c)
+	for {
+		c, _ := li.Accept()
+		io.Copy(c, c)
 	}
 
 }
-
