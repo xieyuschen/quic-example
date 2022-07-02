@@ -20,3 +20,19 @@ As UDP is a connectionless protocol, you don't need it. You get remote address i
 datagram, so you know who it's from, so you don't need a per-connection socket to tell you. 
 
 //TODO: why connection based protocol tcp need to get the remote address information from the connection?
+
+## How to deal with a connection-based protocol accord udp
+As we know, udp is a connectionless protocol, in corresponding it doesn't provide interface like `accept()` to get a 
+connection.  In tcp protocol, the connection is managed by socket as a file descriptor so the OS and process could get 
+data from one connection easily without additive operations.  
+
+However, when it comes to udp, we need to introduce a new mechanism to support connection-based protocol. To manage a 
+connection-based protocol accords udp, it needs to do at least:
+
+- Handle read/write event in user mode.  
+Tcp connection is present by socket(fd), all read/write event could be informed by OS kernel network module. However, 
+  quic needs to maintain a user-mode connection manager which needs to handle the event of reading/writing and deal with
+  the udp event.
+  
+
+In quic, the multiplexer manages the connections by storing the udp connection in and binding the packet handler.
