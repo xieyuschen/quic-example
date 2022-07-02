@@ -2,8 +2,11 @@
 This chapter focus on how the server instance works.
 
 ## Server workflow
-The server is designed and encapsulated well. It uses channel to pass data from different go routines which benefits 
-from the mechanism of go routine.  
+The author designed and encapsulated the quic server well. It uses channel to pass data from different go routines which
+benefits from the mechanism of go routine.  
+
+A intriguing fact: when read code, the core logical are usually starting silence and communicate by channels. It means 
+that if read the block code at the beginning, the paramount workflow will lose for you.
 
 ## Multiplexer
 One interface and prepare one interface for multiplexing. Return the interface to the caller instead of struct. The 
@@ -30,10 +33,13 @@ type connMultiplexer struct {
 Inside `connMultiplexer`, there is a function `newPacketHandlerManager` which is used to create a new packet handler 
 manager. The reason for this is that the handler should bind with the `connMultiplexer` but shouldn't as an interface. 
 
-The function could of course call directly instead of being stored in the `connMultiplexer` but this is not a good as 
-it introduces complexity if we want to change the handler to a different implementation.
+The function could of course call directly instead of being stored in the `connMultiplexer`. However, it introduces 
+complexity if we want to change the handler with a different implementation.
 
 Of course, this might be the habit of the user.
+
+Multiplexer is a singleton which belongs to a server instance.
+
 
 ## Server-ConnMultiplexer-PacketHandlerManager
 The abstraction in quic-go does quite well. The server start and then enroll ConnMultiplexer and PacketHandlerManager. 
