@@ -224,7 +224,7 @@ var defaultAcceptToken = func(clientAddr net.Addr, token *Token) bool {
 }
 ```
 
-If it needs send a RETRY packet, the server side construct a token to send back:
+If it needs send a RETRY packet, the server side will construct a token to send back:
 
 ```go
 func (s *baseServer) sendRetry(remoteAddr net.Addr, hdr *wire.Header, info *packetInfo) error {
