@@ -1,14 +1,14 @@
 # 3.packets-during-echo
 
-This section aims to learn about the packets during the echo example.
-If we want to use wireshark to capture and analysis packets,
-the key pair and certificate should be fixed as we need it to decrypt the
+This section aims to help you learn about the packets during the echo example.
+If we want to use wireshark to capture and analyze packets,
+the key pair and certificate should be unchanged as we need it to decrypt the
 packets. As a result, the cert files are stored under `/cert` folder.
 
 ## How to decrypt the packets
 
 As the quic standard document has been released in 2021.05, wireshark
-could analysis it automatically.
+could analyze it automatically.
 
 **Note that you need to use a version that supports RFC draft-27**.
 
@@ -34,8 +34,8 @@ off a communication session that uses TLS encryption. During a TLS handshake, th
 messages to acknowledge each other, verify each other, establish the encryption algorithms they will use, and agree
 on session keys.
 
-TLS(transport layer security) is the successor of ssl(secure socket layer). The handshake will take place those actions
-as version negotiating, ensure cipher, exchange the certificated data and generate session:
+TLS(transport layer security) is the successor of ssl(secure socket layer). The handshake includes the following actions,  
+version negotiating, ensure cipher, exchange the certificated data and generate session:
 
 - Specify which version of TLS (TLS 1.0, 1.2, 1.3, etc.) they will use.
 - Decide on which cipher suites (see below) they will use.
@@ -57,11 +57,11 @@ Note that QUIC **uses TLSv1.3 which based on the ephemeral Diffie-Hellman algori
    `server hello` replies the `client hello` with:
    - server's SSL certificate.
    - the server's chosen cipher suite.
-   - server random.
+   - `server random`.
 
 3. Server's digital signature  
-The server uses its private key to encrypt the client random, the server random, and its DH parameter*. 
-This encrypted data functions as the server's digital signature, establishing that the server has the private key that 
+The server uses its private key to encrypt the `client random`, the server random, and its DH parameter*. 
+This encrypted data is treated as the server's digital signature, ensuring that the server has the private key that 
 matches with the public key from the SSL certificate.
 
 
@@ -73,8 +73,8 @@ private key and is who it says it is. Client DH parameter: The client sends its 
 The client and server use the DH parameters they exchanged to calculate a matching premaster secret separately.
 
 6. Session keys created  
-   This step generates the session.Both client and server generate session keys from the client random, the server random,
-   and the premaster secret. **They should arrive at the same results**.
+   This step generates the session. Both client and server generate session keys from the `client random`, the `server random`,
+   and the premaster secret. **They should get the same results**.
 
 7. Client is ready  
    The client sends a "finished" message that is encrypted with a session key.
@@ -87,7 +87,7 @@ The client and server use the DH parameters they exchanged to calculate a matchi
 
 
 *DH parameter: DH stands for Diffie-Hellman. The Diffie-Hellman algorithm uses exponential calculations to arrive at 
-the same premaster secret. The server and client each provide a parameter for the calculation, and when combined they 
+the same premaster secret. The server and client each provides a parameter for the calculation, and when combined they 
 result in a different calculation on each side, with results that are equal.
 
 ## Quic Packet format
@@ -103,7 +103,7 @@ has two types of packet headers.
 
 - Long header:  
   QUIC packets for connection establishment need to contain several pieces of information,
-  it uses the long header format.
+  and it uses the long header format.
 - Short header:
   The short header format that is used after the handshake is completed.
   Once a connection is established, only certain header fields are necessary, the subsequent
@@ -126,8 +126,8 @@ the origin line in the workflow picture separates connection establishing and st
 ### Step1: Initial packet from client
 
 [RFC 17.2.2](https://www.rfc-editor.org/rfc/rfc9000.html#section-17.2.2) shows the Initial packet format. As we use 
-wireshark to analyze the packet and it has already unmarshalled the packets, here won't explain format too much but 
-only note some points.
+wireshark to analyze the packet and it has already unmarshalled the packets, here we won't explain too much format and 
+only focus on the following details:
 
 - Quic is based on the UDP and IP layer, so it contains IP packet and UDP packet. IP header contains 20 bytes(or five 
   32-bit increments with max 24 bytes). The UDP header is 8 bytes length. Note that in the hex displaying mode, every 
@@ -224,7 +224,7 @@ var defaultAcceptToken = func(clientAddr net.Addr, token *Token) bool {
 }
 ```
 
-If it needs send a RETRY packet, the server side construct a token to send back:
+If it needs send a RETRY packet, the server side will construct a token to send back:
 
 ```go
 func (s *baseServer) sendRetry(remoteAddr net.Addr, hdr *wire.Header, info *packetInfo) error {
@@ -260,7 +260,7 @@ The ack make sure the reliability in quic, say [RFC 13.2.1](https://www.rfc-edit
 
 The Protected payload packet aims to:
 
-- send `CRYPTO` with multiple handshake message(step3-Server's digital signature) in TLS establish.
+- send `CRYPTO` with multiple handshake messages(step3-Server's digital signature) in TLS establish.
 - send `NEW_CONNECTION_ID`.
 
 After the handshake sent by server, there is a `protected packet`. This `protected packet` has two IETF quic packets,
@@ -299,7 +299,7 @@ Handshake packet contains an ack and a `CRYPTO` which contains a tls handshake `
 - The first one sends an ACK back.
 - The second one sends an `ENTIRE_CONNECTION_ID`.
 
-After they are done, all works in establishing a connection has been ended and the client is waiting to receive an ACK 
+After they are done, all works in establishing a connection will be ended and the client will be  waiting to receive an ACK 
 from the server.  
 
 Note that both of those two use the **short header**.
@@ -308,15 +308,15 @@ Note that both of those two use the **short header**.
 
 The server sends back an ACK with a **short header**. 
 
-Note that after receiving this packet, **a connection has been established for both endpoints**.
+Note that after receiving this packet, **a connection will be established for both endpoints**.
 
 
 ## Quic stream handshake procedures
-Quic stream based on the quic connection. In the workflow picture, establishing the quic stream starts at step7.
+Quic stream is based on the quic connection. In the workflow picture, establishing the quic stream starts at step7.
 
 ### Step7: Payload from client to server
 - use short quic header.
-- stream information such as id, bidirectional and son on.
+- stream information such as id, bidirectional and so on.
 - **send data to the server**.  
 
 Quic allows users to send data without establishing a stream.
